@@ -1,0 +1,298 @@
+﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.Common.Input;
+using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.GraphicsLibraryFramework;
+using System;
+using System.Collections.Generic;
+using ZPG;
+
+public class Program : GameWindow 
+{
+    const int POINT_SIZE = 10;
+    float mouseSensitivity = 1f;
+
+    List<SceneObject> Objects = new();
+    Shader shader;
+    Viewport viewport;
+    Camera camera;
+    Light light;
+    double fps = 0;
+
+    float StartTime = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+    float ElapsedTime => ((float)DateTime.Now.TimeOfDay.TotalSeconds - StartTime) * .05f; // 10 minutes = 1 real world second
+
+    float hours => (ElapsedTime + MathF.PI) % (2f * MathF.PI) / (2f * MathF.PI) * 24;
+    int minutes => (int)((hours - (int)hours) * 60);
+    float lightMultiplier => MathHelper.Clamp(.8f + MathF.Cos(ElapsedTime) * .5f, 0f, 1f);
+
+    /// <summary>
+    /// Initializes a new instance of the Program main window with standard OpenGL Core configurations.
+    /// </summary>
+    public Program() : base(GameWindowSettings.Default, new NativeWindowSettings() { 
+        Profile = ContextProfile.Core,
+        Flags = ContextFlags.Default,
+        API = ContextAPI.OpenGL,
+        APIVersion = new Version(3, 3),
+    }) { }
+
+    /// <summary>
+    /// Application entry point.
+    /// </summary>
+    public static void Main() => new Program().Run();
+
+    /// <summary>
+    /// Executes initialization logic prior to the primary update and render loops.
+    /// Loads core 3D models, configures the environment lights, and maps terrain geometry to the active camera.
+    /// </summary>
+    protected override void OnLoad()
+    {
+        base.OnLoad();   
+
+        Console.WriteLine("GL_VERSION:  " + GL.GetString(StringName.Version));
+        Console.WriteLine("GL_RENDERER: " + GL.GetString(StringName.Renderer));
+        GL.GetInteger(GetPName.ContextFlags, out int ctxFlags);
+        GL.GetInteger(GetPName.ContextProfileMask, out int profileMask);
+        Console.WriteLine($"FORWARD COMPATIBILTY: {(ctxFlags & 0x1) != 0}");
+        Console.WriteLine($"COMPATIBILITY: {(profileMask & 0x2) != 0} ");
+        CursorState |= CursorState.Grabbed;
+
+        viewport = new Viewport();
+        viewport.ClientSize = ClientSize;
+        
+        camera = new CameraWalk() { Position = new Vector3(0, 11.8f, 0) };
+
+        var (terrainVertices, terrainTriangles, obj, width, height) = TerrainLoader.Load("maps/hruba_skala_objekty.png");
+        Model terrain = new Model(terrainVertices, terrainTriangles) {
+            Material = new Material() { diffuse = new Vector3(.5f, .27f, .12f), specular = new Vector3(0.1f), shininess = .5f }
+        };
+        Objects.Add(terrain);
+
+        if (camera is CameraWalk walkCam)
+        {
+            walkCam.ComputeHeightMap(terrainVertices, terrainTriangles, width, height);
+        }
+
+
+        
+        var (treeVert, treeTri) = ObjLoader.Load("objects/LowPoly_Tree_v1.obj");
+        var (rockVert, rockTri) = ObjLoader.Load("objects/Rock1.obj");
+        Material treeMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 1f };
+        Material rockMat = new Material() { diffuse = new Vector3(0.2f, 0.2f, 0.2f), specular = new Vector3(0.5f), shininess = 10f };
+        Random random = new Random();
+        foreach (var o in obj)
+        {
+            if (o.W == 1) // tree
+            {
+                Console.WriteLine($"Tree at ({o.X},{o.Y},{o.Z})");
+                Model tree = new Model(treeVert, treeTri) { 
+                    Scale = Vector3.One * ((float)random.NextDouble() * .06f + .06f),
+                    Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
+                    Material = treeMat,
+                    Position = o.Xyz
+                    };
+
+                Objects.Add(tree);
+            }
+            else if (o.W == 2) // rock
+            {
+                Console.WriteLine($"Rock at ({o.X},{o.Y},{o.Z})");
+                Model rock = new Model(rockVert, rockTri) { 
+                    Scale = Vector3.One * ((float)random.NextDouble() * .1f + 1.5f),
+                    //Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
+                    Material = rockMat,
+                    Position = o.Xyz
+                    };
+                Objects.Add(rock);
+            }
+        }
+        
+
+        Vector3 direction = new Vector3(0, -1, 0);
+        Vector3 color = new Vector3(1, 1, .9f);
+        float intensity = 1f;
+        light = Light.CreateDirectional(direction, color, intensity);
+
+        shader = new Shader("shaders/basic.vert", "shaders/basic.frag");
+    }
+
+    /// <summary>
+    /// Updates application viewport bounds in response to window manipulation.
+    /// </summary>
+    /// <param name="e">Event arguments containing resize dimensions.</param>
+    protected override void OnResize(ResizeEventArgs e)
+    {
+        base.OnResize(e);
+        viewport.ClientSize = ClientSize;
+    }
+
+    /// <summary>
+    /// Executes the game logic simulation frame-by-frame, resolving inputs and propagating transformation vectors.
+    /// </summary>
+    /// <param name="args">Timing data associated with the current frame execution.</param>
+    protected override void OnUpdateFrame(FrameEventArgs args)
+    {
+        
+        if (KeyboardState.IsKeyDown(Keys.Escape))
+            Close();
+            
+        if (KeyboardState.IsKeyPressed(Keys.F))
+        {
+            if (WindowState == WindowState.Fullscreen)
+                WindowState = WindowState.Normal;
+            else
+                WindowState = WindowState.Fullscreen;
+        }
+
+        if (camera is CameraFly flyCam) 
+        {
+            float speed = 1f;
+            if (KeyboardState.IsKeyDown(Keys.Space)) speed = 10f;
+
+            var camVelocity = Vector3.Zero;
+            if (KeyboardState.IsKeyDown(Keys.W)) flyCam.Advance(speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.S)) flyCam.Advance(-speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.D)) flyCam.Strafe(speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.A)) flyCam.Strafe(-speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.LeftShift)) camVelocity.Y = speed;
+            if (KeyboardState.IsKeyDown(Keys.LeftControl)) camVelocity.Y = -speed;
+            flyCam.Velocity = camVelocity;
+
+            flyCam.AngularVelocity = MouseState.Delta * mouseSensitivity;
+
+            if (KeyboardState.IsKeyDown(Keys.Equal))
+                flyCam.Fov = MathF.Max(0.1f, flyCam.Fov - (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.Minus))
+                flyCam.Fov = MathF.Min(MathF.PI - 0.1f, flyCam.Fov + (float)args.Time);
+        }
+        if (camera is CameraWalk walkCam) 
+        {
+            float speed = 3f;
+            if (KeyboardState.IsKeyDown(Keys.LeftShift)) speed = 6f;
+
+            if (KeyboardState.IsKeyPressed(Keys.Space)) {
+                Vector3 jumpVelocity = walkCam.Velocity;
+                jumpVelocity.Y += 8f;
+                walkCam.Jump(jumpVelocity);
+            }
+
+            walkCam.Velocity = Vector3.Zero;
+            if (KeyboardState.IsKeyDown(Keys.W)) walkCam.Advance(speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.S)) walkCam.Advance(-speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.D)) walkCam.Strafe(speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.A)) walkCam.Strafe(-speed, (float)args.Time);
+            
+
+            walkCam.AngularVelocity = MouseState.Delta * mouseSensitivity;
+
+            if (KeyboardState.IsKeyDown(Keys.Equal))
+                walkCam.Fov = MathF.Max(0.1f, walkCam.Fov - (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.Minus))
+                walkCam.Fov = MathF.Min(MathF.PI - 0.1f, walkCam.Fov + (float)args.Time);
+        }
+        if (camera is CameraOrtho orthoCam) 
+        {
+            var camVelocity = Vector3.Zero;
+            if (KeyboardState.IsKeyDown(Keys.W)) camVelocity.Y = 1f;
+            if (KeyboardState.IsKeyDown(Keys.S)) camVelocity.Y = -1f;
+            if (KeyboardState.IsKeyDown(Keys.D)) camVelocity.X = 1f;
+            if (KeyboardState.IsKeyDown(Keys.A)) camVelocity.X = -1f;
+            camera.Velocity = camVelocity;
+
+            var delta = MouseState.Delta;
+            orthoCam.AngularZVelocity = delta.X * mouseSensitivity;
+        }
+        else if (camera is CameraOrbit orbitCam)
+        {
+            orbitCam.AngularVelocity = MouseState.Delta * mouseSensitivity;
+            orbitCam.Velocity = new Vector3(0, 0, -MouseState.ScrollDelta.Y * 100f);
+
+            if (KeyboardState.IsKeyDown(Keys.Equal))
+                orbitCam.Fov = MathF.Max(0.1f, orbitCam.Fov - (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.Minus))
+                orbitCam.Fov = MathF.Min(MathF.PI - 0.1f, orbitCam.Fov + (float)args.Time);
+        }
+
+        camera.Update((float)args.Time);
+        foreach (var obj in Objects) obj.Update((float)args.Time);
+
+        Vector4 lightPos = light.Position;
+        lightPos.Y = -MathF.Cos(ElapsedTime);
+        lightPos.X = MathF.Sin(ElapsedTime);
+        light.Position = lightPos;
+                
+        Vector3 lightColor = light.BaseColor;
+        lightColor *= lightMultiplier;
+        light.Color = lightColor;
+
+        base.OnUpdateFrame(args);
+    }
+
+    /// <summary>
+    /// Executes individual draw calls for the complete collection of active scene objects.
+    /// Configures depth buffers, shader uniforms, and projection vectors.
+    /// </summary>
+    /// <param name="viewport">The target drawing boundaries.</param>
+    /// <param name="camera">The primary camera mapping projection layout.</param>
+    /// <param name="gizmo">Optional debugging objects requiring specialized rendering overlays.</param>
+    void DrawScene(Viewport viewport, Camera camera, SceneObject gizmo)
+    {
+        var (pos, size) = viewport.GetPixelViewport();
+        GL.Enable(EnableCap.ScissorTest);
+        GL.Scissor(pos.X, pos.Y, size.X, size.Y);
+        GL.Viewport(pos.X, pos.Y, size.X, size.Y);
+
+        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        GL.Enable(EnableCap.DepthTest);
+
+        shader.Use();
+
+        shader.SetUniform("cameraPosWorld", camera.Position);
+        shader.SetUniform("lightPosWorld", light.Position);
+        shader.SetUniform("lightColor", light.Color);
+        shader.SetUniform("lightIntensity", light.Intensity);
+
+        var projection = camera.GetProjectionMatrix(viewport.GetAspectRatio());
+        shader.SetUniform("projection", projection);
+
+        var view = camera.ViewMatrix;
+        shader.SetUniform("view", view);
+
+        foreach (var obj in Objects)
+        {
+            var model = obj.ModelMatrix;
+            shader.SetUniform("model", model);
+            obj.Material.SetUniforms(shader);
+            obj.Draw();
+        }
+    }
+
+    /// <summary>
+    /// Orchestrates hardware rendering pipeline interactions necessary for projecting geometry onto the backbuffer prior to swap.
+    /// </summary>
+    /// <param name="args">Timing data associated with the current frame execution.</param>
+    protected override void OnRenderFrame(FrameEventArgs args)
+    {
+        
+        GL.ClearColor(.1f * lightMultiplier, .2f * lightMultiplier, 1f * lightMultiplier, 0);
+        DrawScene(viewport, camera, camera);
+
+        SwapBuffers();
+
+        fps = 0.95 * fps + 0.05 * (1 / args.Time);
+        Title = $"FPS: {fps:0}        Time: {(int)hours:D2}:{minutes:D2}";
+    }
+
+    /// <summary>
+    /// Executes final memory cleanup commands before context destruction.
+    /// Ensures that graphics processor resources are actively freed to prevent leaks.
+    /// </summary>
+    override protected void OnUnload()
+    {
+        base.OnUnload();
+        shader.Dispose();
+
+        foreach (var obj in Objects) obj.Dispose();
+    }
+}
