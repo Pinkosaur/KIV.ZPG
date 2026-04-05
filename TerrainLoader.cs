@@ -5,7 +5,7 @@ namespace ZPG
 {
     public static class TerrainLoader
     {
-        public static (VertexNormal[], Triangle[], Vector4[], int, int) Load(string filename)
+        public static (VertexNormal[], MeshPart[], Vector4[], int, int) Load(string filename)
         {
             using var fs = File.OpenRead(filename);
             using var br = new BinaryReader(fs);
@@ -143,10 +143,11 @@ namespace ZPG
 
             VertexNormal[] vertsArr = verts.ToArray();
             Triangle[] trisArr = tris.ToArray();
+            MeshPart[] meshParts = new MeshPart[] { new MeshPart() { Triangles = trisArr } };
 
-            ObjLoader.ComputeNormals(vertsArr, trisArr);
+            ObjLoader.ComputeNormals(vertsArr, meshParts);
 
-            return (vertsArr, trisArr, objects.ToArray(), width, height);
+            return (vertsArr, meshParts, objects.ToArray(), width, height);
         }
 
         private static void ApplyPngFilter(byte filterType, byte[] curRow, byte[] prevRow, int bytesPerPixel)

@@ -5,7 +5,7 @@ using System.IO;
 
 namespace ZPG
 {
-    internal sealed class Texture2D : IDisposable
+    public sealed class Texture2D : IDisposable
     {
         public int Handle { get; }
 

@@ -63,23 +63,28 @@ public class Program : GameWindow
         
         camera = new CameraWalk() { Position = new Vector3(0, 11.8f, 0) };
 
-        var (terrainVertices, terrainTriangles, obj, width, height) = TerrainLoader.Load("maps/hruba_skala_objekty.png");
-        Model terrain = new Model(terrainVertices, terrainTriangles) {
-            Material = new Material() { diffuse = new Vector3(.5f, .27f, .12f), specular = new Vector3(0.1f), shininess = .5f },
-            Texture = new Texture2D("textures/Ground023_1K-JPG/Ground023_1K-JPG_Color.jpg")
+        var (terrainVertices, terrainMeshParts, obj, width, height) = TerrainLoader.Load("maps/hruba_skala_objekty.png");
+        terrainMeshParts[0].Texture = new Texture2D("textures/Ground023_1K-JPG/Ground023_1K-JPG_Color.jpg");
+        Model terrain = new Model(terrainVertices, terrainMeshParts)
+        {
+            Material = new Material() { diffuse = new Vector3(.4f, .3f, .12f), specular = new Vector3(0.1f), shininess = .5f }
         };
         Objects.Add(terrain);
 
         if (camera is CameraWalk walkCam)
         {
-            walkCam.ComputeHeightMap(terrainVertices, terrainTriangles, width, height);
+            walkCam.ComputeHeightMap(terrainVertices, terrainMeshParts, width, height);
         }
 
 
         
         var (treeVert, treeTri) = ObjLoader.Load("objects/LowPoly_Tree_v1.obj");
+        //var (treeTrunkVert, treeTrunkTri) = ObjLoader.Load("objects/tree_trunk_only.obj");
+        //var (treeLeavesVert, treeLeavesTri) = ObjLoader.Load("objects/tree_leaves_only.obj");
         var (rockVert, rockTri) = ObjLoader.Load("objects/Rock1.obj");
-        Material treeMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 1f };
+        //Material treeTrunkMat = new Material() { diffuse = new Vector3(.5f, .2f, .04f), specular = new Vector3(0.1f), shininess = 1f};
+        //Material treeLeavesMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 5f };
+        Material treeMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 5f };
         Material rockMat = new Material() { diffuse = new Vector3(0.2f, 0.2f, 0.2f), specular = new Vector3(0.5f), shininess = 10f };
         Random random = new Random();
         foreach (var o in obj)
@@ -93,8 +98,21 @@ public class Program : GameWindow
                     Material = treeMat,
                     Position = o.Xyz
                     };
+                    /*
+                Model treeTrunk = new Model(treeTrunkVert, treeTrunkTri) { 
+                    Scale = Vector3.One * ((float)random.NextDouble() * .06f + .06f),
+                    Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
+                    Material = treeTrunkMat,
+                    Position = o.Xyz
+                    };
+                Model treeLeaves = new Model(treeLeavesVert, treeLeavesTri) { 
+                    Scale = Vector3.One * ((float)random.NextDouble() * .06f + .06f),
+                    Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
+                    Material = treeLeavesMat,
+                    Position = o.Xyz
+                    };*/
 
-                Objects.Add(tree);
+                Objects.Add(tree); //Objects.Add(treeTrunk); Objects.Add(treeLeaves);
             }
             else if (o.W == 2) // rock
             {
@@ -170,7 +188,7 @@ public class Program : GameWindow
         if (camera is CameraWalk walkCam) 
         {
             float speed = 3f;
-            if (KeyboardState.IsKeyDown(Keys.LeftShift)) speed = 6f;
+
 
             if (KeyboardState.IsKeyPressed(Keys.Space)) {
                 Vector3 jumpVelocity = walkCam.Velocity;
@@ -178,8 +196,17 @@ public class Program : GameWindow
                 walkCam.Jump(jumpVelocity);
             }
 
+            if (KeyboardState.IsKeyPressed(Keys.LeftControl))
+            {
+                walkCam.ToggleCrouch();
+            }
+
             walkCam.Velocity = Vector3.Zero;
-            if (KeyboardState.IsKeyDown(Keys.W)) walkCam.Advance(speed, (float)args.Time);
+            if (KeyboardState.IsKeyDown(Keys.W))
+            {
+                if (KeyboardState.IsKeyDown(Keys.LeftShift)) walkCam.Run(speed, (float)args.Time);
+                else walkCam.Advance(speed, (float)args.Time);
+            }
             if (KeyboardState.IsKeyDown(Keys.S)) walkCam.Advance(-speed, (float)args.Time);
             if (KeyboardState.IsKeyDown(Keys.D)) walkCam.Strafe(speed, (float)args.Time);
             if (KeyboardState.IsKeyDown(Keys.A)) walkCam.Strafe(-speed, (float)args.Time);
@@ -268,10 +295,7 @@ public class Program : GameWindow
 
             obj.Material.SetUniforms(shader);
 
-            if (obj is Model m && m.Texture != null)
-                shader.SetUniform("useTexture", 1);
-            else
-                shader.SetUniform("useTexture", 0);
+            shader.SetUniform("useTexture", obj is Model ? 1 : 0);
 
             obj.Draw();
         }

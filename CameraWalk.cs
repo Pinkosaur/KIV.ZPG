@@ -9,6 +9,12 @@ namespace ZPG
     /// </summary>
     internal class CameraWalk : Camera
     {
+        private float _eyeLevel = 1.8f;
+        private float _normalEyeLevel = 1.8f;
+        private float _crouchingEyeLevel = 1f;
+        private bool _crouching = false;
+        private float _speedMultiplier = 1f;
+
         /// <summary>
         /// Gets or sets the field of view (FOV) of the camera in radians.
         /// </summary>
@@ -42,10 +48,17 @@ namespace ZPG
         /// <summary>
         /// Precomputes the heightmap grid from the provided terrain geometry to allow fast height lookups.
         /// </summary>
-        public void ComputeHeightMap(VertexNormal[] terrainVertices, Triangle[] terrainTriangles, int width, int height)
+        public void ComputeHeightMap(VertexNormal[] terrainVertices, MeshPart[] terrainMeshParts, int width, int height)
         {
-            if (terrainVertices == null || terrainTriangles == null)
+            if (terrainVertices == null || terrainMeshParts == null)
                 return;
+
+            List<Triangle> t = new List<Triangle>();
+            foreach (var part in terrainMeshParts)
+                foreach (var tri in part.Triangles)
+                    t.Add(tri);
+
+            Triangle[] terrainTriangles = t.ToArray();
 
             _terrainWidth = width;
             _terrainHeight = height;
@@ -113,7 +126,7 @@ namespace ZPG
             {
                 newPosition.Z = _mapMaxZ;
             }
-            newPosition.Y = ComputeY(newPosition.X, newPosition.Z) + 1.8f; // Ensure the camera stays grounded to the terrain when clamping to edges
+            newPosition.Y = ComputeY(newPosition.X, newPosition.Z) + _eyeLevel; // Ensure the camera stays grounded to the terrain when clamping to edges
             Position = newPosition;
             return;
         }
@@ -152,7 +165,7 @@ namespace ZPG
                 position += _airborneVelocity * dt;
 
                 // Check for collision with the terrain
-                float terrainY = ComputeY(position.X, position.Z) + 1.8f;
+                float terrainY = ComputeY(position.X, position.Z) + _eyeLevel;
                 
                 // Camera only snaps to the ground if traveling downwards and crosses the height threshold
                 if (position.Y <= terrainY /*&& _airborneVelocity.Y <= 0*/)
@@ -171,9 +184,9 @@ namespace ZPG
                 if (Velocity.LengthSquared > 0.0001f)
                 {
                     Vector3 nextPosition = position + Velocity * dt;
-                    nextPosition.Y = ComputeY(nextPosition.X, nextPosition.Z) + 1.8f;
+                    nextPosition.Y = ComputeY(nextPosition.X, nextPosition.Z) + _eyeLevel;
 
-                    int slopeState = EvalSlope(position - new Vector3(0, 1.8f, 0), nextPosition);
+                    int slopeState = EvalSlope(position - new Vector3(0, _eyeLevel, 0), nextPosition);
 
                     if (slopeState == -1) 
                     {
@@ -204,7 +217,7 @@ namespace ZPG
                 else
                 {
                     // Ensure the camera stays anchored to the terrain even when no input is provided
-                    position.Y = ComputeY(position.X, position.Z) + 1.8f;
+                    position.Y = ComputeY(position.X, position.Z) + _eyeLevel;
                     UpdatePosition(position);
                 }
             }
@@ -230,6 +243,16 @@ namespace ZPG
         public void Advance(float speed, float dt)
         {
             AdvanceDirectional(speed, 0f);
+        }
+
+        public void Run(float speed, float dt)
+        {
+            if (speed <= 0)
+            {
+                Advance(speed, dt); return;
+            }
+            if (_crouching) ToggleCrouch();
+            Advance(2 * speed, dt);
         }
 
         /// <summary>
@@ -262,6 +285,26 @@ namespace ZPG
             Velocity = v;
         }
 
+        public void ToggleCrouch()
+        {
+            Vector3 pos = Position;
+            if (_crouching)
+            {
+                _eyeLevel = _normalEyeLevel;
+                _crouching = false;
+                _speedMultiplier = 1f;
+                pos.Y += _normalEyeLevel - _crouchingEyeLevel;
+            }
+            else
+            {
+                _eyeLevel = _crouchingEyeLevel;
+                _crouching = true;
+                _speedMultiplier = .7f;
+                pos.Y -= _normalEyeLevel - _crouchingEyeLevel;
+            }
+            UpdatePosition(pos);
+        }
+
         /// <summary>
         /// Computes the final model matrix using the camera's scale, rotation, and translation variables.
         /// </summary>
@@ -281,7 +324,7 @@ namespace ZPG
         private float ComputeY(float x, float z)
         {
             if (_heightMap == null)
-                return Position.Y - 1.8f;
+                return Position.Y - _eyeLevel;
 
             // Convert world coordinates to grid coordinates.
             float gx = _terrainWidth  * 0.5f - 0.5f + x;
@@ -292,7 +335,7 @@ namespace ZPG
 
             // Need a full cell, so the last valid cell starts at width-2 / height-2.
             if ((uint)ix >= (uint)(_terrainWidth - 1) || (uint)iz >= (uint)(_terrainHeight - 1))
-                return Position.Y - 1.8f;
+                return Position.Y - _eyeLevel;
 
             float tx = gx - ix;
             float tz = gz - iz;
