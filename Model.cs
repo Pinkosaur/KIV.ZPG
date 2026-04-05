@@ -12,12 +12,12 @@ namespace ZPG
     {
         VertexNormal[] vertices;
         Triangle[] triangles;
+        public Texture2D? Texture { get; set; }
         Vector3 min;
         Vector3 max;
         Vector3 center;
         int width;
         int height;
-
         int VBO;
         int IBO;
         int VAO;
@@ -75,6 +75,9 @@ namespace ZPG
 
         public override void Draw()
         {
+            if (Texture != null)
+                Texture.Bind(TextureUnit.Texture0);
+
             GL.BindVertexArray(VAO);
             GL.DrawElements(PrimitiveType.Triangles, 3 * triangles.Length, DrawElementsType.UnsignedInt, IntPtr.Zero);
             GL.BindVertexArray(0);
@@ -89,6 +92,7 @@ namespace ZPG
             GL.DeleteBuffer(VBO);
             GL.DeleteBuffer(IBO);
             GL.DeleteVertexArray(VAO);
+            Texture?.Dispose();
 
             disposed = true;
         }    

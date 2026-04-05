@@ -65,7 +65,8 @@ public class Program : GameWindow
 
         var (terrainVertices, terrainTriangles, obj, width, height) = TerrainLoader.Load("maps/hruba_skala_objekty.png");
         Model terrain = new Model(terrainVertices, terrainTriangles) {
-            Material = new Material() { diffuse = new Vector3(.5f, .27f, .12f), specular = new Vector3(0.1f), shininess = .5f }
+            Material = new Material() { diffuse = new Vector3(.5f, .27f, .12f), specular = new Vector3(0.1f), shininess = .5f },
+            Texture = new Texture2D("textures/Ground023_1K-JPG/Ground023_1K-JPG_Color.jpg")
         };
         Objects.Add(terrain);
 
@@ -252,6 +253,7 @@ public class Program : GameWindow
         shader.SetUniform("lightPosWorld", light.Position);
         shader.SetUniform("lightColor", light.Color);
         shader.SetUniform("lightIntensity", light.Intensity);
+        shader.SetUniform("diffuseTexture", 0);
 
         var projection = camera.GetProjectionMatrix(viewport.GetAspectRatio());
         shader.SetUniform("projection", projection);
@@ -263,7 +265,14 @@ public class Program : GameWindow
         {
             var model = obj.ModelMatrix;
             shader.SetUniform("model", model);
+
             obj.Material.SetUniforms(shader);
+
+            if (obj is Model m && m.Texture != null)
+                shader.SetUniform("useTexture", 1);
+            else
+                shader.SetUniform("useTexture", 0);
+
             obj.Draw();
         }
     }
