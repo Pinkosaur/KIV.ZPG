@@ -57,12 +57,16 @@ namespace ZPG
                 }
                 else if (line.StartsWith("o "))
                 {
+                    string name = line.Substring(2).Trim();
                     if (currentTriangles.Count > 0)
                     {
                         currentMeshPart.Triangles = currentTriangles.ToArray();
                         meshParts.Add(currentMeshPart);
                         currentMeshPart = new MeshPart();
                     }
+                    currentMeshPart.Name = name;
+                    
+                    
                 }
             }
 

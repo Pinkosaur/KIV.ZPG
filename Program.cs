@@ -13,7 +13,7 @@ public class Program : GameWindow
     const int POINT_SIZE = 10;
     float mouseSensitivity = 1f;
 
-    List<SceneObject> Objects = new();
+    List<Model> Objects = new();
     Shader shader;
     Viewport viewport;
     Camera camera;
@@ -65,10 +65,11 @@ public class Program : GameWindow
 
         var (terrainVertices, terrainMeshParts, obj, width, height) = TerrainLoader.Load("maps/hruba_skala_objekty.png");
         terrainMeshParts[0].Texture = new Texture2D("textures/Ground023_1K-JPG/Ground023_1K-JPG_Color.jpg");
-        Model terrain = new Model(terrainVertices, terrainMeshParts)
-        {
-            Material = new Material() { diffuse = new Vector3(.4f, .3f, .12f), specular = new Vector3(0.1f), shininess = .5f }
-        };
+        terrainMeshParts[0].Material = new Material() { diffuse = new Vector3(.5f, .38f, .15f), specular = new Vector3(0.1f), shininess = 5f };
+        Model terrain = new Model(terrainVertices, terrainMeshParts);
+        
+        
+        
         Objects.Add(terrain);
 
         if (camera is CameraWalk walkCam)
@@ -77,15 +78,17 @@ public class Program : GameWindow
         }
 
 
-        
+        //tree
         var (treeVert, treeTri) = ObjLoader.Load("objects/LowPoly_Tree_v1.obj");
-        //var (treeTrunkVert, treeTrunkTri) = ObjLoader.Load("objects/tree_trunk_only.obj");
-        //var (treeLeavesVert, treeLeavesTri) = ObjLoader.Load("objects/tree_leaves_only.obj");
+        Material treeTrunkMat = new Material() { diffuse = new Vector3(.65f, .28f, .07f), specular = new Vector3(0.1f), shininess = 1f};
+        Material treeLeavesMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 1f };
+        Texture2D treeLeavesTexture = new Texture2D("textures/leaves1.jpg");
+        Texture2D treeTrunkTexture = new Texture2D("textures/Bark014_1K-JPG/Bark014_1K-JPG_Color.jpg");
+        Vector3 treeRot = new Vector3(-MathF.PI / 2, 0, 0);
+
+        //rock
         var (rockVert, rockTri) = ObjLoader.Load("objects/Rock1.obj");
-        //Material treeTrunkMat = new Material() { diffuse = new Vector3(.5f, .2f, .04f), specular = new Vector3(0.1f), shininess = 1f};
-        //Material treeLeavesMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 5f };
-        Material treeMat = new Material() { diffuse = new Vector3(.04f, .4f, .08f), specular = new Vector3(0.2f), shininess = 5f };
-        Material rockMat = new Material() { diffuse = new Vector3(0.2f, 0.2f, 0.2f), specular = new Vector3(0.5f), shininess = 10f };
+        Material rockMat = new Material() { diffuse = new Vector3(0.2f, 0.2f, 0.2f), specular = new Vector3(0.5f), shininess = 5f };
         Random random = new Random();
         foreach (var o in obj)
         {
@@ -93,26 +96,21 @@ public class Program : GameWindow
             {
                 Console.WriteLine($"Tree at ({o.X},{o.Y},{o.Z})");
                 Model tree = new Model(treeVert, treeTri) { 
-                    Scale = Vector3.One * ((float)random.NextDouble() * .06f + .06f),
-                    Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
-                    Material = treeMat,
+                    Scale = Vector3.One * ((float)random.NextDouble() * .07f + .05f),
+                    Rotation = treeRot,
                     Position = o.Xyz
                     };
-                    /*
-                Model treeTrunk = new Model(treeTrunkVert, treeTrunkTri) { 
-                    Scale = Vector3.One * ((float)random.NextDouble() * .06f + .06f),
-                    Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
-                    Material = treeTrunkMat,
-                    Position = o.Xyz
-                    };
-                Model treeLeaves = new Model(treeLeavesVert, treeLeavesTri) { 
-                    Scale = Vector3.One * ((float)random.NextDouble() * .06f + .06f),
-                    Rotation = new Vector3(-MathF.PI / 2, 0, 0), 
-                    Material = treeLeavesMat,
-                    Position = o.Xyz
-                    };*/
+                tree.meshParts[0].Texture = treeTrunkTexture;
+                tree.meshParts[0].Material = treeTrunkMat;
+                tree.meshParts[1].Texture = treeLeavesTexture;
+                tree.meshParts[1].Material = treeLeavesMat;
 
-                Objects.Add(tree); //Objects.Add(treeTrunk); Objects.Add(treeLeaves);
+                Console.WriteLine($"Tree has {tree.meshParts.Length} mesh parts");
+                foreach (var part in tree.meshParts)
+                {
+                    Console.WriteLine($"Mesh part '{part.Name}' has {part.Triangles.Length} triangles");
+                }
+                Objects.Add(tree);
             }
             else if (o.W == 2) // rock
             {
@@ -290,14 +288,12 @@ public class Program : GameWindow
 
         foreach (var obj in Objects)
         {
-            var model = obj.ModelMatrix;
-            shader.SetUniform("model", model);
+            var modelMatrix = obj.ModelMatrix;
+            shader.SetUniform("model", modelMatrix);
 
-            obj.Material.SetUniforms(shader);
+            shader.SetUniform("useTexture", 1);
 
-            shader.SetUniform("useTexture", obj is Model ? 1 : 0);
-
-            obj.Draw();
+            obj.Draw(shader);
         }
     }
 
@@ -308,7 +304,7 @@ public class Program : GameWindow
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         
-        GL.ClearColor(.1f * lightMultiplier, .2f * lightMultiplier, 1f * lightMultiplier, 0);
+        GL.ClearColor(.2f * lightMultiplier, .4f * lightMultiplier, 1f * lightMultiplier, 0);
         DrawScene(viewport, camera, camera);
 
         SwapBuffers();

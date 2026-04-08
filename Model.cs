@@ -8,7 +8,7 @@ namespace ZPG
     internal class Model : SceneObject, IDisposable
     {
         private VertexNormal[] vertices;
-        private MeshPart[] meshParts;
+        public MeshPart[] meshParts;
 
         private int[] indices;              // flattened index buffer
         private int[] partIndexOffsets;     // first index for each part
@@ -110,7 +110,7 @@ namespace ZPG
         {
         }
 
-        public override void Draw()
+        public void Draw(Shader shader)
         {
             GL.BindVertexArray(VAO);
 
@@ -119,7 +119,7 @@ namespace ZPG
                 var part = meshParts[p];
 
                 part.Texture?.Bind(TextureUnit.Texture0);
-                // part.Material.SetUniforms(shader);
+                part.Material.SetUniforms(shader);
 
                 GL.DrawElements(
                     PrimitiveType.Triangles,
