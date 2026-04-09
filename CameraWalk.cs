@@ -126,7 +126,6 @@ namespace ZPG
             {
                 newPosition.Z = _mapMaxZ;
             }
-            newPosition.Y = ComputeY(newPosition.X, newPosition.Z) + _eyeLevel; // Ensure the camera stays grounded to the terrain when clamping to edges
             Position = newPosition;
             return;
         }
@@ -232,6 +231,7 @@ namespace ZPG
             {
                 _isJumping = true;
                 _airborneVelocity = velocity;
+                if (_crouching) ToggleCrouch(); // Automatically stand up when jumping
             }
         }
 
@@ -279,8 +279,8 @@ namespace ZPG
             
             // Accumulate velocity in meters per second. 
             // We intentionally avoid multiplying by dt here, as dt integration happens centrally in the Update method.
-            v.X += -speed * MathF.Sin(angle);
-            v.Z += -speed * MathF.Cos(angle);
+            v.X += -speed * _speedMultiplier * MathF.Sin(angle);
+            v.Z += -speed * _speedMultiplier * MathF.Cos(angle);
             
             Velocity = v;
         }
@@ -299,7 +299,7 @@ namespace ZPG
             {
                 _eyeLevel = _crouchingEyeLevel;
                 _crouching = true;
-                _speedMultiplier = .7f;
+                _speedMultiplier = .4f;
                 pos.Y -= _normalEyeLevel - _crouchingEyeLevel;
             }
             UpdatePosition(pos);
