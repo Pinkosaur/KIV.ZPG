@@ -1,4 +1,4 @@
-- find out what process is reducing fps (processor-side bottleneck)
+- optimize text rendering (currently high processor use)
 - collision with trees
 - improve texture mapping to objects
 - map management utils (PNG modifier, obj to png, etc) + create png backups!!!
