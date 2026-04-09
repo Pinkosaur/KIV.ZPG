@@ -10,6 +10,7 @@ using ZPG;
 
 public class Program : GameWindow 
 {
+    BitmapFontRenderer fontRenderer;
     const int POINT_SIZE = 10;
     float mouseSensitivity = 1f;
 
@@ -25,7 +26,7 @@ public class Program : GameWindow
 
     float hours => (ElapsedTime + MathF.PI) % (2f * MathF.PI) / (2f * MathF.PI) * 24;
     int minutes => (int)((hours - (int)hours) * 60);
-    float sunlightMultiplier => Math.Min(.8f + MathF.Cos(ElapsedTime) * .5f, 1f);
+    float sunlightMultiplier => MathHelper.Clamp(MathF.Cos(ElapsedTime) + .15f, 0f, 1f);
 
     /// <summary>
     /// Initializes a new instance of the Program main window with standard OpenGL Core configurations.
@@ -35,6 +36,7 @@ public class Program : GameWindow
         Flags = ContextFlags.Default,
         API = ContextAPI.OpenGL,
         APIVersion = new Version(3, 3),
+        Vsync = VSyncMode.On
     }) { }
 
     /// <summary>
@@ -48,7 +50,7 @@ public class Program : GameWindow
     /// </summary>
     protected override void OnLoad()
     {
-        base.OnLoad();   
+        base.OnLoad();
 
         Console.WriteLine("GL_VERSION:  " + GL.GetString(StringName.Version));
         Console.WriteLine("GL_RENDERER: " + GL.GetString(StringName.Renderer));
@@ -132,6 +134,8 @@ public class Program : GameWindow
         Lights.Add(Light.CreatePoint(direction: camera.Position, color: new Vector3(1, .8f, .6f), intensity: 0f));
 
         shader = new Shader("shaders/basic.vert", "shaders/basic.frag");
+
+        fontRenderer = new BitmapFontRenderer("fonts/arial/ARIAL.TTF", 18, ClientSize.X, ClientSize.Y);
     }
 
     /// <summary>
@@ -142,6 +146,10 @@ public class Program : GameWindow
     {
         base.OnResize(e);
         viewport.ClientSize = ClientSize;
+        if (fontRenderer != null)
+        {
+            fontRenderer.UpdateScreenSize(ClientSize.X, ClientSize.Y);
+        }
     }
 
     /// <summary>
@@ -255,9 +263,9 @@ public class Program : GameWindow
         sun.Color = sunColor;
 
         var lamp = Lights[1];
-        if (hours < 6 || hours > 18)
+        if (hours < 7 || hours > 17)
         {
-            lamp.Intensity = .7f;
+            lamp.Intensity = 1f;
             Vector4 lampPos = lamp.Position;
             lampPos = new Vector4(camera.Position, 1.0f);
             lamp.Position = lampPos;
@@ -323,13 +331,17 @@ public class Program : GameWindow
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         
-        GL.ClearColor(.2f * sunlightMultiplier, .4f * sunlightMultiplier, 1f * sunlightMultiplier, 0);
+        GL.ClearColor(.2f * sunlightMultiplier + .025f, .4f * sunlightMultiplier + .05f, 1f * sunlightMultiplier + .125f, 0);
         DrawScene(viewport, camera, camera);
+
+        fontRenderer.DrawText($"Time: {(int)hours:D2}:{minutes:D2}", 10, 10, Vector3.One * 255);
+
 
         SwapBuffers();
 
         fps = 0.95 * fps + 0.05 * (1 / args.Time);
-        Title = $"FPS: {fps:0}        Time: {(int)hours:D2}:{minutes:D2}";
+        string vsync = VSync == VSyncMode.On ? " On" : " Off";
+        Title = $"FPS: {fps:0} (VSync {vsync})";
     }
 
     /// <summary>
@@ -340,6 +352,7 @@ public class Program : GameWindow
     {
         base.OnUnload();
         shader.Dispose();
+        fontRenderer?.Dispose();
 
         foreach (var obj in Objects) obj.Dispose();
     }
