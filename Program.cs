@@ -21,6 +21,7 @@ public class Program : GameWindow
     List<Light> Lights = new();
     bool lampModeAuto = true;
     bool lampOn = false;
+    bool displayHud = true;
     double fps = 0;
 
     float StartTime = (float)DateTime.Now.TimeOfDay.TotalSeconds;
@@ -196,7 +197,10 @@ public class Program : GameWindow
         }
         if (camera is CameraWalk walkCam) 
         {
-            float speed = 3f;
+            // Doom walking speed: approx. 290 units per second
+            // 1 map unit approx 1 inch, so 290 units/s = 290 inches/s = approx. 7.4 m/s
+
+            float speed = 7.4f;
 
 
             if (KeyboardState.IsKeyPressed(Keys.Space)) {
@@ -258,6 +262,27 @@ public class Program : GameWindow
         if (!lampModeAuto && KeyboardState.IsKeyPressed(Keys.K))
         {
             lampOn = !lampOn;
+        }
+
+        if (KeyboardState.IsKeyPressed(Keys.H))
+        {
+            displayHud = !displayHud;
+        }
+
+        if (KeyboardState.IsKeyPressed(Keys.V))
+        {
+            if (VSync == VSyncMode.On)
+            {
+                VSync = VSyncMode.Off;
+            }
+            else if (VSync == VSyncMode.Off)
+            {
+                VSync = VSyncMode.Adaptive;
+            }
+            else
+            {
+                VSync = VSyncMode.On;
+            }
         }
 
         camera.Update((float)args.Time);
@@ -366,18 +391,36 @@ public class Program : GameWindow
         GL.ClearColor(.2f * sunlightMultiplier + .025f, .4f * sunlightMultiplier + .05f, 1f * sunlightMultiplier + .125f, 0);
         DrawScene(viewport, camera, camera);
 
-        fontRenderer.DrawText($"Time: {(int)hours:D2}:{minutes:D2}", 10, 10, Vector3.One * 255);
-        string lampMode = lampModeAuto ? "Auto" : "Manual";
-        string lampStatus = Lights[1].Intensity > 0 ? "On" : "Off";
-        fontRenderer.DrawText($"Lamp Mode: {lampMode}", 10, 30, Vector3.One * 255);
-        fontRenderer.DrawText($"Lamp: {lampStatus}", 10, 50, Vector3.One * 255);
+        if (displayHud)
+        {
+            fontRenderer.DrawText($"Position: {camera.Position.X:0.0}, {camera.Position.Y:0.0}, {camera.Position.Z:0.0}", 10, 10, Vector3.One * 255);
+            fontRenderer.DrawText($"Time: {(int)hours:D2}:{minutes:D2}", 10, 30, Vector3.One * 255);
+            string lampMode = lampModeAuto ? "Auto" : "Manual";
+            string lampStatus = Lights[1].Intensity > 0 ? "on" : "off";
+            string lampHint = lampModeAuto ? "" : " (K)";
+            fontRenderer.DrawText($"Lamp toggle: {lampMode} (L)", 10, 50, Vector3.One * 255);
+            fontRenderer.DrawText($"Lamp {lampStatus}{lampHint}", 10, 70, Vector3.One * 255);
+            fontRenderer.DrawText("(H) to hide hud", 10, 90, Vector3.One * 255);
+        }
 
 
 
         SwapBuffers();
 
+        string vsync;
         fps = 0.95 * fps + 0.05 * (1 / args.Time);
-        string vsync = VSync == VSyncMode.On ? " On" : " Off";
+        if (VSync == VSyncMode.On)
+        {
+            vsync = " On";
+        }
+        else if (VSync == VSyncMode.Off)
+        {
+             vsync = " Off";
+        }
+        else
+        {
+             vsync = " Adaptive";
+        }
         Title = $"FPS: {fps:0} (VSync {vsync})";
     }
 
