@@ -19,6 +19,8 @@ public class Program : GameWindow
     Viewport viewport;
     Camera camera;
     List<Light> Lights = new();
+    bool lampModeAuto = true;
+    bool lampOn = false;
     double fps = 0;
 
     float StartTime = (float)DateTime.Now.TimeOfDay.TotalSeconds;
@@ -97,6 +99,7 @@ public class Program : GameWindow
             if (o.W == 1) // tree
             {
                 Console.WriteLine($"Tree at ({o.X},{o.Y},{o.Z})");
+                treeRot.Y = (float)random.NextDouble() * MathF.PI * 2f;
                 Model tree = new Model(treeVert, treeTri) { 
                     Scale = Vector3.One * ((float)random.NextDouble() * .07f + .05f),
                     Rotation = treeRot,
@@ -248,6 +251,15 @@ public class Program : GameWindow
                 orbitCam.Fov = MathF.Min(MathF.PI - 0.1f, orbitCam.Fov + (float)args.Time);
         }
 
+        if (KeyboardState.IsKeyPressed(Keys.L))
+        {
+            lampModeAuto = !lampModeAuto;
+        }
+        if (!lampModeAuto && KeyboardState.IsKeyPressed(Keys.K))
+        {
+            lampOn = !lampOn;
+        }
+
         camera.Update((float)args.Time);
         foreach (var obj in Objects) obj.Update((float)args.Time);
 
@@ -263,16 +275,36 @@ public class Program : GameWindow
         sun.Color = sunColor;
 
         var lamp = Lights[1];
-        if (hours < 7 || hours > 17)
+        if (lampModeAuto)
         {
-            lamp.Intensity = 1f;
-            Vector4 lampPos = lamp.Position;
-            lampPos = new Vector4(camera.Position, 1.0f);
-            lamp.Position = lampPos;
+            if (hours < 7 || hours > 17)
+            {
+                lamp.Intensity = 1f;
+                Vector4 lampPos = lamp.Position;
+                lampPos = new Vector4(camera.Position, 1.0f);
+                lamp.Position = lampPos;
+                lampOn = true;
+            }
+            else
+            {
+                lamp.Intensity = 0f;
+                lampOn = false;
+            }
         }
         else
         {
-            lamp.Intensity = 0f;
+
+            if (lampOn)
+            {
+                lamp.Intensity = 1f;
+                Vector4 lampPos = lamp.Position;
+                lampPos = new Vector4(camera.Position, 1.0f);
+                lamp.Position = lampPos;
+            }
+            else
+            {
+                lamp.Intensity = 0f;
+            }
         }
 
         base.OnUpdateFrame(args);
@@ -335,6 +367,11 @@ public class Program : GameWindow
         DrawScene(viewport, camera, camera);
 
         fontRenderer.DrawText($"Time: {(int)hours:D2}:{minutes:D2}", 10, 10, Vector3.One * 255);
+        string lampMode = lampModeAuto ? "Auto" : "Manual";
+        string lampStatus = Lights[1].Intensity > 0 ? "On" : "Off";
+        fontRenderer.DrawText($"Lamp Mode: {lampMode}", 10, 30, Vector3.One * 255);
+        fontRenderer.DrawText($"Lamp: {lampStatus}", 10, 50, Vector3.One * 255);
+
 
 
         SwapBuffers();
