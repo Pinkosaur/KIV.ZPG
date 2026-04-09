@@ -1,5 +1,4 @@
-- pass list of lights to shader if possible
-    - lamp light at night
 - collision with trees
+- improve texture mapping to objects
 - map management utils (PNG modifier, obj to png, etc) + create png backups!!!
 - store biome type in maps - load terrain into multiple mesh parts
