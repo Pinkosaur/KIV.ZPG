@@ -17,7 +17,7 @@ public class Program : GameWindow
     Shader shader;
     Viewport viewport;
     Camera camera;
-    Light light;
+    List<Light> Lights = new();
     double fps = 0;
 
     float StartTime = (float)DateTime.Now.TimeOfDay.TotalSeconds;
@@ -25,7 +25,7 @@ public class Program : GameWindow
 
     float hours => (ElapsedTime + MathF.PI) % (2f * MathF.PI) / (2f * MathF.PI) * 24;
     int minutes => (int)((hours - (int)hours) * 60);
-    float lightMultiplier => MathHelper.Clamp(.8f + MathF.Cos(ElapsedTime) * .5f, 0f, 1f);
+    float sunlightMultiplier => Math.Min(.8f + MathF.Cos(ElapsedTime) * .5f, 1f);
 
     /// <summary>
     /// Initializes a new instance of the Program main window with standard OpenGL Core configurations.
@@ -125,11 +125,11 @@ public class Program : GameWindow
             }
         }
         
+        // sun
+        Lights.Add(Light.CreateDirectional(direction: new Vector3(0, -1, 0), color: new Vector3(1, 1, .9f), intensity: 1f));
 
-        Vector3 direction = new Vector3(0, -1, 0);
-        Vector3 color = new Vector3(1, 1, .9f);
-        float intensity = 1f;
-        light = Light.CreateDirectional(direction, color, intensity);
+        // lamp (at night)
+        Lights.Add(Light.CreatePoint(direction: camera.Position, color: new Vector3(1, .8f, .6f), intensity: 0f));
 
         shader = new Shader("shaders/basic.vert", "shaders/basic.frag");
     }
@@ -243,14 +243,29 @@ public class Program : GameWindow
         camera.Update((float)args.Time);
         foreach (var obj in Objects) obj.Update((float)args.Time);
 
-        Vector4 lightPos = light.Position;
-        lightPos.Y = -MathF.Cos(ElapsedTime);
-        lightPos.X = MathF.Sin(ElapsedTime);
-        light.Position = lightPos;
-                
-        Vector3 lightColor = light.BaseColor;
-        lightColor *= lightMultiplier;
-        light.Color = lightColor;
+        var sun = Lights[0];
+
+        Vector4 sunPos = sun.Position;
+        sunPos.Y = -MathF.Cos(ElapsedTime);
+        sunPos.X = MathF.Sin(ElapsedTime);
+        sun.Position = sunPos;
+
+        Vector3 sunColor = sun.BaseColor;
+        sunColor *= sunlightMultiplier;
+        sun.Color = sunColor;
+
+        var lamp = Lights[1];
+        if (hours < 6 || hours > 18)
+        {
+            lamp.Intensity = .7f;
+            Vector4 lampPos = lamp.Position;
+            lampPos = new Vector4(camera.Position, 1.0f);
+            lamp.Position = lampPos;
+        }
+        else
+        {
+            lamp.Intensity = 0f;
+        }
 
         base.OnUpdateFrame(args);
     }
@@ -275,9 +290,13 @@ public class Program : GameWindow
         shader.Use();
 
         shader.SetUniform("cameraPosWorld", camera.Position);
-        shader.SetUniform("lightPosWorld", light.Position);
-        shader.SetUniform("lightColor", light.Color);
-        shader.SetUniform("lightIntensity", light.Intensity);
+        shader.SetUniform("lightCount", Lights.Count);
+        for (int i = 0; i < Lights.Count; i++)
+        {
+            shader.SetUniform($"lights[{i}].position", Lights[i].Position);
+            shader.SetUniform($"lights[{i}].color", Lights[i].Color);
+            shader.SetUniform($"lights[{i}].intensity", Lights[i].Intensity);
+        }
         shader.SetUniform("diffuseTexture", 0);
 
         var projection = camera.GetProjectionMatrix(viewport.GetAspectRatio());
@@ -304,7 +323,7 @@ public class Program : GameWindow
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         
-        GL.ClearColor(.2f * lightMultiplier, .4f * lightMultiplier, 1f * lightMultiplier, 0);
+        GL.ClearColor(.2f * sunlightMultiplier, .4f * sunlightMultiplier, 1f * sunlightMultiplier, 0);
         DrawScene(viewport, camera, camera);
 
         SwapBuffers();
