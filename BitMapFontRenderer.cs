@@ -74,7 +74,7 @@ namespace ZPG
 
             // 1. Measure text dimensions
             var size = TextMeasurer.MeasureSize(text, new TextOptions(_font));
-            int w = (int)Math.Ceiling(size.Width);
+            int w = (int)Math.Ceiling(size.Width) + 1;
             int h = (int)Math.Ceiling(size.Height) + 1;
             if (w == 0 || h == 0) return;
 
