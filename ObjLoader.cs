@@ -3,8 +3,16 @@ using static System.Globalization.CultureInfo;
 
 namespace ZPG
 {
+    /// <summary>
+    /// Loads simple Wavefront OBJ mesh data and computes vertex normals.
+    /// </summary>
     public static class ObjLoader
     {
+        /// <summary>
+        /// Loads vertices and mesh parts from an OBJ file.
+        /// </summary>
+        /// <param name="filename">Path to the OBJ file.</param>
+        /// <returns>Vertex array and mesh-part array.</returns>
         public static (VertexNormal[], MeshPart[]) Load(string filename)
         {
             var lines = File.ReadAllLines(filename);
@@ -84,6 +92,11 @@ namespace ZPG
             return (verts, parts);
         }
 
+        /// <summary>
+        /// Computes averaged per-vertex normals from triangle geometry.
+        /// </summary>
+        /// <param name="vertices">Vertex buffer to update in-place.</param>
+        /// <param name="parts">Mesh parts containing triangle indices.</param>
         public static void ComputeNormals(VertexNormal[] vertices, MeshPart[] parts)
         {
             foreach (var part in parts)

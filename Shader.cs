@@ -7,12 +7,24 @@ using System.Text;
 
 namespace ZPG;
 
+/// <summary>
+/// OpenGL shader program wrapper handling compilation, linking and uniforms.
+/// </summary>
 public class Shader : IDisposable
 {
+    private readonly Dictionary<string, int> uniforms = new();
+    private bool disposed = false;
+
+    /// <summary>
+    /// OpenGL program object identifier.
+    /// </summary>
     public int ID { get; private set; }
 
-    private readonly Dictionary<string, int> uniforms = new();
-
+    /// <summary>
+    /// Compiles and links vertex/fragment shader files into a program.
+    /// </summary>
+    /// <param name="vertexPath">Path to vertex shader source.</param>
+    /// <param name="fragmentPath">Path to fragment shader source.</param>
     public Shader(string vertexPath, string fragmentPath)
     {
         int vertexShader = CompileShader(vertexPath, ShaderType.VertexShader);
@@ -26,13 +38,12 @@ public class Shader : IDisposable
     }
 
     /// <summary>
-    /// Překlad Shaderu
+    /// Compiles a shader source file for the specified shader stage.
     /// </summary>
-    /// <param name="source"></param>
-    /// <param name="type"></param>
-    /// <param name="filePath"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
+    /// <param name="filePath">Path to shader source file.</param>
+    /// <param name="type">OpenGL shader stage.</param>
+    /// <returns>Compiled shader object id.</returns>
+    /// <exception cref="Exception">Thrown when shader compilation fails.</exception>
     private int CompileShader(string filePath, ShaderType type)
     {
         string source = File.ReadAllText(filePath);
@@ -52,10 +63,10 @@ public class Shader : IDisposable
     }
 
     /// <summary>
-    /// Linkování shaderů do výsledného programu.
+    /// Links compiled shaders into a final OpenGL program.
     /// </summary>
-    /// <param name="shaders"></param>
-    /// <exception cref="Exception"></exception>
+    /// <param name="shaders">Compiled shader object ids.</param>
+    /// <exception cref="Exception">Thrown when program linking fails.</exception>
     private void LinkShader(params int[] shaders)
     {
         ID = GL.CreateProgram();
@@ -74,7 +85,7 @@ public class Shader : IDisposable
     }
 
     /// <summary>
-    /// Použije program. Nejprve je třeba použít program, pak je možné nastavovat uniforms
+    /// Binds this shader program as the current active program.
     /// </summary>
     public void Use()
     {
@@ -82,7 +93,7 @@ public class Shader : IDisposable
     }
 
     /// <summary>
-    /// Nahraje adresy všech uniforms ze shaderu
+    /// Caches active uniform locations from the linked program.
     /// </summary>
     private void LoadUniforms()
     {
@@ -104,10 +115,10 @@ public class Shader : IDisposable
     }
 
     /// <summary>
-    /// Zjistí adresu uniform proměnné ze slovníku, pokud v něm je
+    /// Gets cached location for a uniform name.
     /// </summary>
-    /// <param name="name">Jméno uniform</param>
-    /// <returns>Adresa</returns>
+    /// <param name="name">Uniform variable name.</param>
+    /// <returns>Uniform location or -1 if not found.</returns>
     public int GetUniformLocation(string name)
     {
         if (uniforms.TryGetValue(name, out int location))
@@ -118,8 +129,11 @@ public class Shader : IDisposable
     }
 
     /// <summary>
-    /// Inteligentní metoda pro nastavování uniform proměnných.
+    /// Sets a uniform value by type.
     /// </summary>
+    /// <typeparam name="T">Uniform value type.</typeparam>
+    /// <param name="name">Uniform variable name.</param>
+    /// <param name="value">Uniform value.</param>
     public void SetUniform<T>(string name, T value)
     {
         int location = GetUniformLocation(name);
@@ -150,7 +164,9 @@ public class Shader : IDisposable
         }
     }
 
-    bool disposed = false;
+    /// <summary>
+    /// Deletes the OpenGL shader program.
+    /// </summary>
     public void Dispose()
     {
         if (disposed) return;

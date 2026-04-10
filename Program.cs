@@ -8,28 +8,94 @@ using System;
 using System.Collections.Generic;
 using ZPG;
 
+/// <summary>
+/// Main application window hosting rendering, input handling, and scene updates.
+/// </summary>
 public class Program : GameWindow 
 {
-    BitmapFontRenderer fontRenderer;
     const int POINT_SIZE = 10;
+
+    BitmapFontRenderer fontRenderer;
+
+    /// <summary>
+    /// Mouse sensitivity multiplier used by camera controllers.
+    /// </summary>
     float mouseSensitivity = 1f;
 
+    /// <summary>
+    /// Scene object collection rendered each frame.
+    /// </summary>
     List<Model> Objects = new();
+
+    /// <summary>
+    /// Global scene shader used for all model draw calls.
+    /// </summary>
     Shader shader;
+
+    /// <summary>
+    /// Active viewport helper converting normalized and pixel regions.
+    /// </summary>
     Viewport viewport;
+
+    /// <summary>
+    /// Active camera instance.
+    /// </summary>
     Camera camera;
+
+    /// <summary>
+    /// Global lights sent to the shader.
+    /// </summary>
     List<Light> Lights = new();
+
+    /// <summary>
+    /// When true, lamp behavior is controlled by simulated day/night cycle.
+    /// </summary>
     bool lampModeAuto = true;
+
+    /// <summary>
+    /// Manual lamp state toggle.
+    /// </summary>
     bool lampOn = false;
+
+    /// <summary>
+    /// Toggles HUD text rendering.
+    /// </summary>
     bool displayHud = true;
+
+    /// <summary>
+    /// Exponential moving average of rendered FPS.
+    /// </summary>
     double fps = 0;
 
+    /// <summary>
+    /// Real-world start time used for simulation timeline.
+    /// </summary>
     float StartTime = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+
+    /// <summary>
+    /// Elapsed simulation time in radians.
+    /// </summary>
     float ElapsedTime => ((float)DateTime.Now.TimeOfDay.TotalSeconds - StartTime) * .05f; // 10 minutes = 1 real world second
 
+    /// <summary>
+    /// Simulated hour-of-day value in range [0, 24).
+    /// </summary>
     float hours => (ElapsedTime + MathF.PI) % (2f * MathF.PI) / (2f * MathF.PI) * 24;
+
+    /// <summary>
+    /// Simulated minute component.
+    /// </summary>
     int minutes => (int)((hours - (int)hours) * 60);
+
+    /// <summary>
+    /// Sunlight intensity multiplier derived from simulated sun angle.
+    /// </summary>
     float sunlightMultiplier => MathHelper.Clamp(MathF.Cos(ElapsedTime) + .15f, 0f, 1f);
+
+    /// <summary>
+    /// Terrain map path loaded during initialization.
+    /// </summary>
+    string mapFilePath = "maps/hruba_skala_objekty.png";
 
     /// <summary>
     /// Initializes a new instance of the Program main window with standard OpenGL Core configurations.
@@ -45,7 +111,16 @@ public class Program : GameWindow
     /// <summary>
     /// Application entry point.
     /// </summary>
-    public static void Main() => new Program().Run();
+    /// <param name="args">Optional command-line arguments. First argument overrides terrain map path.</param>
+    public static void Main(string[] args) {
+        if (args.Length > 0)
+        {
+            Console.WriteLine($"Using terrain file: {args[0]}");
+            new Program() { mapFilePath = args[0] }.Run();
+        }
+        else
+            new Program().Run();
+    }
 
     /// <summary>
     /// Executes initialization logic prior to the primary update and render loops.
@@ -68,7 +143,7 @@ public class Program : GameWindow
         
         camera = new CameraWalk() { Position = new Vector3(0, 11.8f, 0) };
 
-        var (terrainVertices, terrainMeshParts, obj, width, height) = TerrainLoader.Load("maps/hruba_skala_objekty.png");
+        var (terrainVertices, terrainMeshParts, obj, width, height) = TerrainLoader.Load(mapFilePath);
         terrainMeshParts[0].Texture = new Texture2D("textures/Ground023_1K-JPG/Ground023_1K-JPG_Color.jpg");
         terrainMeshParts[0].Material = new Material() { diffuse = new Vector3(.5f, .38f, .15f), specular = new Vector3(0.1f), shininess = 5f };
         Model terrain = new Model(terrainVertices, terrainMeshParts);

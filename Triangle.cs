@@ -1,11 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.InteropServices;
 
 namespace ZPG
 {
-    [StructLayout(LayoutKind.Sequential)] public struct Triangle { public int i0, i1, i2; }
+    /// <summary>
+    /// Triangle index triplet into a vertex array.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Triangle
+    {
+        /// <summary>
+        /// Index of the first vertex.
+        /// </summary>
+        public int i0;
+
+        /// <summary>
+        /// Index of the second vertex.
+        /// </summary>
+        public int i1;
+
+        /// <summary>
+        /// Index of the third vertex.
+        /// </summary>
+        public int i2;
+    }
 }

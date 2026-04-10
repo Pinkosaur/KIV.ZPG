@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace ZPG
 {
+    /// <summary>
+    /// Renderable model composed of a vertex buffer and mesh parts.
+    /// </summary>
     internal class Model : SceneObject, IDisposable
     {
         private VertexNormal[] vertices;
@@ -14,6 +17,9 @@ namespace ZPG
         private int[] partIndexOffsets;     // first index for each part
         private int[] partIndexCounts;      // index count for each part
 
+        /// <summary>
+        /// Optional model-level texture reference.
+        /// </summary>
         public Texture2D? Texture { get; set; }
 
         private Vector3 min;
@@ -28,6 +34,11 @@ namespace ZPG
 
         private bool disposed = false;
 
+        /// <summary>
+        /// Initializes a model and uploads geometry buffers to the GPU.
+        /// </summary>
+        /// <param name="data">Vertex array.</param>
+        /// <param name="parts">Mesh parts referencing triangle indices.</param>
         public Model(VertexNormal[] data, MeshPart[] parts)
         {
             data.CopyTo(vertices = new VertexNormal[data.Length], 0);
@@ -100,16 +111,29 @@ namespace ZPG
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
         }
 
+        /// <summary>
+        /// Updates cached viewport size values.
+        /// </summary>
+        /// <param name="width">Viewport width in pixels.</param>
+        /// <param name="height">Viewport height in pixels.</param>
         public void OnResize(int width, int height)
         {
             this.width = width;
             this.height = height;
         }
 
+        /// <summary>
+        /// Per-frame update hook for model animations.
+        /// </summary>
+        /// <param name="time">Elapsed time.</param>
         public void Update(double time)
         {
         }
 
+        /// <summary>
+        /// Draws all mesh parts with their associated materials and textures.
+        /// </summary>
+        /// <param name="shader">Active shader instance.</param>
         public void Draw(Shader shader)
         {
             GL.BindVertexArray(VAO);
@@ -131,6 +155,9 @@ namespace ZPG
             GL.BindVertexArray(0);
         }
 
+        /// <summary>
+        /// Releases GPU resources owned by the model.
+        /// </summary>
         public override void Dispose()
         {
             if (disposed) return;

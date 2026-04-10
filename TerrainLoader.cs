@@ -3,10 +3,21 @@ using OpenTK.Mathematics;
 
 namespace ZPG
 {
+    /// <summary>
+    /// Loads terrain data from an RGBA PNG heightmap and object map.
+    /// </summary>
     public static class TerrainLoader
     {
+        /// <summary>
+        /// Loads terrain vertices, triangles, object markers, and map dimensions.
+        /// </summary>
+        /// <param name="filename">Path to the PNG terrain map.</param>
+        /// <returns>Vertices, mesh parts, object markers, width and height.</returns>
         public static (VertexNormal[], MeshPart[], Vector4[], int, int) Load(string filename)
         {
+            if (!File.Exists(filename))
+                throw new FileNotFoundException($"Terrain file not found: {filename}");
+                
             using var fs = File.OpenRead(filename);
             using var br = new BinaryReader(fs);
 
@@ -113,6 +124,9 @@ namespace ZPG
 
                     //Console.WriteLine($"Pixel ({x}, {y}): R={r} G={g}");
 
+                    // 1 unit in R channel <=> 0.05 m in world
+                    // 1 unit in coordinates <=> 1m in world
+                    // So 1 unit in R channel = 0.05 units in coordinates
                     float heightY = r * .05f;
 
                     //Console.WriteLine($"Height: {heightY}");
@@ -150,6 +164,13 @@ namespace ZPG
             return (vertsArr, meshParts, objects.ToArray(), width, height);
         }
 
+        /// <summary>
+        /// Applies the PNG scanline filter in-place for a decompressed row.
+        /// </summary>
+        /// <param name="filterType">PNG filter type byte.</param>
+        /// <param name="curRow">Current row byte buffer.</param>
+        /// <param name="prevRow">Previous row byte buffer.</param>
+        /// <param name="bytesPerPixel">Pixel size in bytes.</param>
         private static void ApplyPngFilter(byte filterType, byte[] curRow, byte[] prevRow, int bytesPerPixel)
         {
             switch (filterType)
@@ -191,6 +212,13 @@ namespace ZPG
             }
         }
 
+            /// <summary>
+            /// Computes the Paeth predictor used by PNG filter type 4.
+            /// </summary>
+            /// <param name="a">Left byte.</param>
+            /// <param name="b">Up byte.</param>
+            /// <param name="c">Up-left byte.</param>
+            /// <returns>Predicted byte value.</returns>
         private static int PaethPredictor(int a, int b, int c)
         {
             int p = a + b - c;
@@ -203,6 +231,11 @@ namespace ZPG
             return c;
         }
 
+        /// <summary>
+        /// Reads a big-endian 32-bit unsigned integer from a binary stream.
+        /// </summary>
+        /// <param name="br">Binary reader source.</param>
+        /// <returns>Unsigned 32-bit value.</returns>
         private static uint ReadUInt32BigEndian(BinaryReader br)
         {
             byte[] bytes = br.ReadBytes(4);
@@ -211,6 +244,12 @@ namespace ZPG
             return ReadUInt32BigEndian(bytes, 0);
         }
 
+        /// <summary>
+        /// Reads a big-endian 32-bit unsigned integer from a byte array.
+        /// </summary>
+        /// <param name="buffer">Source buffer.</param>
+        /// <param name="offset">Offset of the first byte.</param>
+        /// <returns>Unsigned 32-bit value.</returns>
         private static uint ReadUInt32BigEndian(byte[] buffer, int offset)
         {
             return ((uint)buffer[offset + 0] << 24) |

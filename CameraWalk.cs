@@ -48,6 +48,10 @@ namespace ZPG
         /// <summary>
         /// Precomputes the heightmap grid from the provided terrain geometry to allow fast height lookups.
         /// </summary>
+        /// <param name="terrainVertices">Terrain vertex array.</param>
+        /// <param name="terrainMeshParts">Terrain mesh parts with triangle indices.</param>
+        /// <param name="width">Terrain grid width.</param>
+        /// <param name="height">Terrain grid height.</param>
         public void ComputeHeightMap(VertexNormal[] terrainVertices, MeshPart[] terrainMeshParts, int width, int height)
         {
             if (terrainVertices == null || terrainMeshParts == null)
@@ -103,6 +107,10 @@ namespace ZPG
             }
         }
 
+        /// <summary>
+        /// Clamps camera X/Z position to terrain bounds and applies the final position.
+        /// </summary>
+        /// <param name="newPosition">Requested world-space position.</param>
         private void UpdatePosition(Vector3 newPosition)
         {
             if (newPosition.X > -_mapMaxX && newPosition.X < _mapMaxX && newPosition.Z > -_mapMaxZ && newPosition.Z < _mapMaxZ)
@@ -225,6 +233,7 @@ namespace ZPG
         /// <summary>
         /// Initiates a jump maneuver. Captures the provided velocity vector to retain horizontal momentum in the air.
         /// </summary>
+        /// <param name="velocity">Initial jump velocity vector.</param>
         public void Jump(Vector3 velocity)
         {
             if (!_isJumping && !_isFalling)
@@ -245,6 +254,11 @@ namespace ZPG
             AdvanceDirectional(speed, 0f);
         }
 
+        /// <summary>
+        /// Applies sprint multiplier for forward movement when speed is positive.
+        /// </summary>
+        /// <param name="speed">Base forward speed.</param>
+        /// <param name="dt">Frame delta time in seconds.</param>
         public void Run(float speed, float dt)
         {
             if (speed <= 0)
@@ -285,6 +299,9 @@ namespace ZPG
             Velocity = v;
         }
 
+        /// <summary>
+        /// Toggles crouch state and adjusts eye level and movement speed multiplier.
+        /// </summary>
         public void ToggleCrouch()
         {
             Vector3 pos = Position;
@@ -316,11 +333,21 @@ namespace ZPG
                 * Matrix4.CreateTranslation(Position);
         }
 
+        /// <summary>
+        /// Performs linear interpolation between two values.
+        /// </summary>
+        /// <param name="a">Start value.</param>
+        /// <param name="b">End value.</param>
+        /// <param name="t">Interpolation factor in range 0..1.</param>
+        /// <returns>Interpolated value.</returns>
         private static float Lerp(float a, float b, float t) => a + (b - a) * t;
 
         /// <summary>
         /// Looks up the terrain height at the specified world X/Z coordinates using interpolated heightmap data.
         /// </summary>
+        /// <param name="x">World X coordinate.</param>
+        /// <param name="z">World Z coordinate.</param>
+        /// <returns>Interpolated terrain height.</returns>
         private float ComputeY(float x, float z)
         {
             if (_heightMap == null)
@@ -353,6 +380,9 @@ namespace ZPG
         /// <summary>
         /// Evaluates the angle of the terrain between two positions to determine if it is navigable.
         /// </summary>
+        /// <param name="position1">Start position.</param>
+        /// <param name="position2">Target position.</param>
+        /// <returns>Slope state (-1 fall, 0 normal, 1 steep, 2 blocked).</returns>
         private int EvalSlope(Vector3 position1, Vector3 position2)
         {
             Vector2 normalizedFlattenedDir = new Vector2(position2.X - position1.X, position2.Z - position1.Z).Normalized() * .3f; // 30 cm in viewing direction

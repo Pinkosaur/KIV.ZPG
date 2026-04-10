@@ -5,15 +5,30 @@ using System.Text;
 
 namespace ZPG
 {
+    /// <summary>
+    /// Orthographic top-down style camera with planar movement and Z rotation.
+    /// </summary>
     internal class CameraOrtho : Camera
     {
+        /// <summary>
+        /// Angular velocity around the Z axis.
+        /// </summary>
+        public float AngularZVelocity { get; set; }
+
+        /// <summary>
+        /// Builds orthographic projection matrix.
+        /// </summary>
+        /// <param name="aspectRatio">Viewport aspect ratio.</param>
+        /// <returns>Orthographic projection matrix.</returns>
         public override Matrix4 GetProjectionMatrix(float aspectRatio)  
         {
             return Matrix4.CreateOrthographic(2*aspectRatio, 2, -10, 10);
         }
 
-        public float AngularZVelocity { get; set; }
-
+        /// <summary>
+        /// Integrates camera rotation and planar movement.
+        /// </summary>
+        /// <param name="dt">Frame delta time in seconds.</param>
         public override void Update(float dt)
         {
             Rotation += new Vector3(0, 0, AngularZVelocity * dt);
@@ -24,6 +39,9 @@ namespace ZPG
             Position += forward * Velocity.Y * dt;
         }
 
+        /// <summary>
+        /// Draw hook for orthographic mode.
+        /// </summary>
         public override void Draw()
         {
             base.Draw();

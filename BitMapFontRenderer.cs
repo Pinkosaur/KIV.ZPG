@@ -10,6 +10,9 @@ using System.IO;
 
 namespace ZPG
 {
+    /// <summary>
+    /// Renders 2D text by rasterizing glyphs to a texture and drawing a screen quad.
+    /// </summary>
     public sealed class BitmapFontRenderer : IDisposable
     {
         private Font _font;
@@ -22,6 +25,13 @@ namespace ZPG
         private int _texHeight;
         private bool _disposed;
 
+        /// <summary>
+        /// Creates a bitmap text renderer using a TrueType font file.
+        /// </summary>
+        /// <param name="fontPath">Path to the TTF font file.</param>
+        /// <param name="fontSize">Font size in points.</param>
+        /// <param name="screenWidth">Current screen width in pixels.</param>
+        /// <param name="screenHeight">Current screen height in pixels.</param>
         public BitmapFontRenderer(string fontPath, int fontSize, float screenWidth, float screenHeight)
         {
             _screenWidth = screenWidth;
@@ -62,12 +72,24 @@ namespace ZPG
             GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 5 * sizeof(float));
         }
 
+        /// <summary>
+        /// Updates screen dimensions used for pixel-to-NDC conversion.
+        /// </summary>
+        /// <param name="w">Screen width in pixels.</param>
+        /// <param name="h">Screen height in pixels.</param>
         public void UpdateScreenSize(float w, float h)
         {
             _screenWidth = w;
             _screenHeight = h;
         }
 
+        /// <summary>
+        /// Draws a text string at the given screen-space position.
+        /// </summary>
+        /// <param name="text">Text to render.</param>
+        /// <param name="x">Left position in screen pixels.</param>
+        /// <param name="y">Top position in screen pixels.</param>
+        /// <param name="color">Text color (0-255 range per channel).</param>
         public void DrawText(string text, float x, float y, Vector3 color)
         {
             if (string.IsNullOrEmpty(text)) return;
@@ -167,6 +189,10 @@ namespace ZPG
             GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
+        /// <summary>
+        /// Builds the internal UI shader program for text rendering.
+        /// </summary>
+        /// <returns>OpenGL shader program id.</returns>
         private int CreateUIShader()
         {
             const string vs = @"#version 330 core
@@ -192,6 +218,9 @@ namespace ZPG
             return prog;
         }
 
+        /// <summary>
+        /// Releases OpenGL resources owned by the renderer.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;

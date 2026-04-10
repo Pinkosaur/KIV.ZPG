@@ -5,10 +5,20 @@ using System.IO;
 
 namespace ZPG
 {
+    /// <summary>
+    /// OpenGL 2D texture wrapper with image loading and lifecycle management.
+    /// </summary>
     public sealed class Texture2D : IDisposable
     {
+        /// <summary>
+        /// OpenGL texture object handle.
+        /// </summary>
         public int Handle { get; }
 
+        /// <summary>
+        /// Loads an image from disk and uploads it as a 2D texture.
+        /// </summary>
+        /// <param name="filename">Path to the texture image file.</param>
         public Texture2D(string filename)
         {
             if (!File.Exists(filename))
@@ -41,12 +51,19 @@ namespace ZPG
             GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
+        /// <summary>
+        /// Binds this texture to the requested texture unit.
+        /// </summary>
+        /// <param name="unit">Target texture unit.</param>
         public void Bind(TextureUnit unit = TextureUnit.Texture0)
         {
             GL.ActiveTexture(unit);
             GL.BindTexture(TextureTarget.Texture2D, Handle);
         }
 
+        /// <summary>
+        /// Deletes the underlying OpenGL texture object.
+        /// </summary>
         public void Dispose()
         {
             GL.DeleteTexture(Handle);
